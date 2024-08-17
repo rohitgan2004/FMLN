@@ -10,7 +10,7 @@ def load_tickers_from_excel(file_path, sheet_name):
     return tickers
 
 
-def fetch_historical_data(ticker, period='1d'): #change to 1d for intraday for sell signals
+def fetch_historical_data(ticker, period='5d'): #change to 1d for intraday for sell signals
     stock_data = yf.download(ticker, period=period, interval='1m')
     return stock_data['Close']  
 
