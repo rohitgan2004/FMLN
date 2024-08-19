@@ -5,12 +5,12 @@ import numpy as np
 
 def load_tickers_from_excel(file_path, sheet_name):
     df = pd.read_excel(file_path, sheet_name=sheet_name)
-    tickers = df['Tickers'].tolist()  # Assuming the tickers are in a column named 'Ticker'
+    tickers = df['TickerAnalysis'].tolist()  # Assuming the tickers are in a column named 'Ticker'
     tickers = [ticker for ticker in tickers if isinstance(ticker, str) and ticker.strip()]
     return tickers
 
 
-def fetch_historical_data(ticker, period='5d'): #change to 1d for intraday for sell signals
+def fetch_historical_data(ticker, period='1d'): #change to 1d for intraday for sell signals
     stock_data = yf.download(ticker, period=period, interval='1m')
     return stock_data['Close']  
 
