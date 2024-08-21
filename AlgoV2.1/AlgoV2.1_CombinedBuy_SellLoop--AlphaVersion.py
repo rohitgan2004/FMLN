@@ -13,6 +13,8 @@ def load_tickers_from_excel_sellside(file_path, sheet_name):# Assuming the ticke
     df = pd.read_excel(file_path, sheet_name=sheet_name)
     tickers = df['BoughtTickers'].head(50).tolist()  
     tickers = [ticker for ticker in tickers if isinstance(ticker, str) and ticker.strip()]
+    print("Buy top 50:")
+    print(tickers)
     return tickers
 
 def fetch_historical_data(ticker, period='5d'): #change to 1d for intraday for sell signals
