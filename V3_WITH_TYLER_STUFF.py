@@ -801,7 +801,7 @@ def close_position(ticker):#Closes a position, accesses the quantity from the bo
     buyQuantity = BoughtTickers.loc[BoughtTickers["ticker"] == ticker, "quantity"].values[0]   
     order = {"orderType": "MARKET", "session": "NORMAL", "duration": "DAY", "orderStrategyType": "SINGLE",
                 "orderLegCollection": [
-                    {"instruction": "BUY", "quantity": buyQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
+                    {"instruction": "SELL", "quantity": buyQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
     resp = client.order_place(account_hash, order)  
     if order_json_inator(resp) != "error":
         BoughtTickers = BoughtTickers[BoughtTickers['ticker'] != ticker]
