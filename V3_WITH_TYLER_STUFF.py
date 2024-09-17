@@ -15,8 +15,8 @@ import tkinter as tk
 import math
 import winsound #This only works on windows**********************************************************************************************************
 
-app_key = "PUT_IN_HERE"
-app_secret = "PUT_IN_HERE"
+app_key = "INSERT"
+app_secret = "INSERT"
 
 #Tyler Stuff
 class Client:
@@ -618,11 +618,11 @@ class Client:
                             params=self._params_parser({'date': self._time_convert(date, 'YYYY-MM-DD')}),
                             timeout=self.timeout)
 
-
 #Our stuff
 def initial_screening(file_path,sheet_name,min_price_limit,max_price_limit,volume_limit,write_file_path):
     df = pd.read_excel(file_path,sheet_name)
     filtered_df = df[(df['Price'] > min_price_limit) & (df['Price'] < max_price_limit) & (df['AverageVolume'] >= volume_limit)]
+    filtered_df = filtered_df.sort_values(by='Randomizer', ascending=False)
     df_write = pd.read_excel(write_file_path)
     initial_list = filtered_df['Ticker'].tolist()
     if len(initial_list) < len(df_write):
@@ -739,13 +739,13 @@ def json_inator(value):#Converts to json if status == 200, else returns "error"
     else:
         return "error"
     
-def order_json_inator(value):#Converts to json if status == 201, else returns "error"
+def order_json_inator(value):#Returns "Success" if status == 201, else returns "error"
     if value.status_code == 201:
-        return value.json()
+        return "Success"
     else:
         return "error"
 
-def position_size_gen():#NEEDS REVIEW************ Should pull out the amount of unsetteled cash and then use that to determine the position size target. However, it is unclear which values in the response actually represent the settled cash amount
+def position_size_gen():
     account_info = json_inator(client.account_details(account_hash))
     total_cash = account_info['securitiesAccount']['currentBalances']['totalCash']
     unsettled_cash = account_info['securitiesAccount']['currentBalances']['unsettledCash']
@@ -753,11 +753,12 @@ def position_size_gen():#NEEDS REVIEW************ Should pull out the amount of 
     position_size_target = (settled_cash * 0.75)/position_num_target
     return position_size_target
 
-def settled_cash_balance():#NEEDS REVIEW************ Should pull out the amount of unsetteled cash
+def settled_cash_balance():
     account_info = json_inator(client.account_details(account_hash))
-    total_cash = account_info['securitiesAccount']['currentBalances']['totalCash']
+    cashAvailableForTrading = account_info['securitiesAccount']['currentBalances']['cashAvailableForTrading']
     unsettled_cash = account_info['securitiesAccount']['currentBalances']['unsettledCash']
-    settled_cash = total_cash - unsettled_cash
+    settled_cash = cashAvailableForTrading - unsettled_cash
+    print(settled_cash)
     return settled_cash
 
 def open_position(ticker):#Opens position with a ticker, determines quantity using ask price and rounds down to the max quantity within the acceptable range of the position $ target
@@ -769,42 +770,28 @@ def open_position(ticker):#Opens position with a ticker, determines quantity usi
             print("quote_error")
             return "quote_error"
         else:
-            assetMainType = quote[ticker]["assetMainType"]
-            totalVolume = quote[ticker]["quote"]["totalVolume"]
             askPrice = quote[ticker]["quote"]["askPrice"]
-            askSize = quote[ticker]["quote"]["askSize"]
-            askFlux = askPrice*askSize  
-            if (assetMainType == "EQUITY") and (totalVolume >= volume_threshold) and (min_price_threshold < askPrice < max_price_threshold) and (askPrice < position_size_target) and (askFlux>position_size_target):          
-                print(f"{ticker}: {signal}") 
-                buyQuantity = math.floor(position_size_target/askPrice)
-                order = {"orderType": "MARKET", "session": "NORMAL", "duration": "DAY", "orderStrategyType": "SINGLE",
-                            "orderLegCollection": [
-                                {"instruction": "BUY", "quantity": buyQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
-                resp = client.order_place(account_hash, order)
-                if order_json_inator(resp) != "error":
-
-                    bought_info = {"ticker": ticker, "quantity": buyQuantity}
-                    buy_count = buy_count+1
-                    BoughtTickers = BoughtTickers.append(bought_info,ignore_index=True)
-                else:
-                    print("BUY ORDER ERROR")
-                    return "buy_order_error"
-            else:
-                print("Ticker Failed Buy Criteria")
-                return    
+            buyQuantity = math.floor(position_size_target/askPrice)
+            order = {"orderType": "MARKET", "session": "NORMAL", "duration": "DAY", "orderStrategyType": "SINGLE",
+                        "orderLegCollection": [
+                            {"instruction": "BUY", "quantity": buyQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
+            client.order_place(account_hash, order)
+            print("Placed order")
+            return buyQuantity
     
     else:
         print("insufficient_funds")
         return "insufficient_funds"
 
 def close_position(ticker):#Closes a position, accesses the quantity from the bought tickers df
-    buyQuantity = BoughtTickers.loc[BoughtTickers["ticker"] == ticker, "quantity"].values[0]   
+    sellQuantity = BoughtTickers.loc[BoughtTickers["ticker"] == ticker, "quantity"].values[0]   
     order = {"orderType": "MARKET", "session": "NORMAL", "duration": "DAY", "orderStrategyType": "SINGLE",
                 "orderLegCollection": [
-                    {"instruction": "SELL", "quantity": buyQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
+                    {"instruction": "SELL", "quantity": sellQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
     resp = client.order_place(account_hash, order)  
     if order_json_inator(resp) != "error":
         BoughtTickers = BoughtTickers[BoughtTickers['ticker'] != ticker]
+        print("Success")
     else:
         print("SELL ORDER ERROR")
         winsound.Beep(1000,3000)
@@ -828,8 +815,11 @@ sheet_name = "Sheet1"
 volume_threshold = 10000
 min_price_threshold = 1.01
 max_price_threshold = 50
-position_num_target = 10
+position_num_target = 1
 position_size_target = position_size_gen()
+
+print(json_inator(client.account_details_all()))
+
 
 #Beginning of acitve bit -- buy side ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -849,7 +839,25 @@ for ticker in tickers:
         try:
             signal = process_sing_ticker(ticker)
             if signal == "BUY":
-                open_position(ticker)
+                quote = json_inator(client.quote(ticker))
+                if quote == "error":
+                    print("quote_error")
+                else:
+                    assetMainType = quote[ticker]["assetMainType"]
+                    totalVolume = quote[ticker]["quote"]["totalVolume"]
+                    askPrice = quote[ticker]["quote"]["askPrice"]
+                    askSize = quote[ticker]["quote"]["askSize"]
+                    askFlux = askPrice*askSize*100  #Take this with a grain of salt--should be good enought though for what it's being used for
+                    print(assetMainType, totalVolume, askPrice, askSize, askFlux)
+                    if (assetMainType == "EQUITY") and (totalVolume >= volume_threshold) and (min_price_threshold < askPrice < max_price_threshold) and (askPrice < position_size_target) and (askFlux>position_size_target):          
+                        print(f"{ticker}: {signal}") 
+                        buy_count = buy_count+1
+                        buy_quant = open_position(ticker)
+                        boughtTicker = { "ticker": ticker,"quantity": buy_quant}
+                        BoughtTickers = BoughtTickers.append(boughtTicker)
+                    else:   
+                        print("Ticker failed criteria")
+
         except Exception as e:
         # print(f"Skipping {ticker} due to an error during processing: {e}")
             continue        
@@ -902,4 +910,3 @@ while True:
         break
     
     reapeat_list.clear()
-   
