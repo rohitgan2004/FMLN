@@ -713,8 +713,8 @@ def process_sing_ticker(ticker):
 
     return signal
 
-def process_tickers_sellside(file_path, sheet_name='Sheet1'):#Changed name, uses sellside load tickers, removed print components as to not use up terminal space (might want to put back the errors?)
-    tickers = load_tickers_from_excel_sellside(file_path, sheet_name)
+def process_tickers_sellside():#Changed name, uses sellside load tickers, removed print components as to not use up terminal space (might want to put back the errors?)
+    tickers = BoughtTickers["ticker"].tolist()
     signals_sellside = {}
 
     for ticker in tickers:
@@ -730,7 +730,7 @@ def process_tickers_sellside(file_path, sheet_name='Sheet1'):#Changed name, uses
         except Exception as e:
            # print(f"Skipping {ticker} due to an error during processing: {e}")
             continue
-
+    print(signals_sellside)
     return signals_sellside
 
 def json_inator(value):#Converts to json if status == 200, else returns "error"
@@ -788,9 +788,9 @@ def close_position(ticker):#Closes a position, accesses the quantity from the bo
     order = {"orderType": "MARKET", "session": "NORMAL", "duration": "DAY", "orderStrategyType": "SINGLE",
                 "orderLegCollection": [
                     {"instruction": "SELL", "quantity": sellQuantity, "instrument": {"symbol": ticker, "assetType": "EQUITY"}}]}
+
     resp = client.order_place(account_hash, order)  
-    if order_json_inator(resp) != "error":
-        BoughtTickers = BoughtTickers[BoughtTickers['ticker'] != ticker]
+    if order_json_inator(resp) != "error":       
         print("Success")
     else:
         print("SELL ORDER ERROR")
@@ -815,7 +815,7 @@ sheet_name = "Sheet1"
 volume_threshold = 10000
 min_price_threshold = 1.01
 max_price_threshold = 50
-position_num_target = 1
+position_num_target = 10
 position_size_target = position_size_gen()
 
 print(json_inator(client.account_details_all()))
@@ -854,7 +854,8 @@ for ticker in tickers:
                         buy_count = buy_count+1
                         buy_quant = open_position(ticker)
                         boughtTicker = { "ticker": ticker,"quantity": buy_quant}
-                        BoughtTickers = BoughtTickers.append(boughtTicker, ignore_index = True)
+                        print(boughtTicker)
+                        BoughtTickers = pd.concat([BoughtTickers, pd.DataFrame([boughtTicker])], ignore_index=True)
                     else:   
                         print("Ticker failed criteria")
 
@@ -866,22 +867,7 @@ for ticker in tickers:
             None
     else:
         None
-
-# Load the existing Excel file into a DataFrame; extend the bought tickers string to match the length
-
-df = pd.read_excel(write_file_path)
-if len(BoughtTickers) < len(df):
-    BoughtTickers.extend([np.nan] * (len(df) - len(BoughtTickers)))
-else:
-    None
-
-# Add the list as a new column in the DataFrame
-# Let's assume the column is named 'BoughtTickers'
-df['BoughtTickers'] = BoughtTickers
-
-# Write the updated DataFrame back to Excel
-df.to_excel(write_file_path, sheet_name=sheet_name, index=False)            
-
+print(BoughtTickers)
 
 #Beginning of acitve bit -- sell side ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -889,15 +875,17 @@ reapeat_list = []
 
 
 #Initially loads and alerts about buy signals
-load_tickers_from_excel_sellside_initial(write_file_path,sheet_name)
+#load_tickers_from_excel_sellside_initial(write_file_path,sheet_name)
 
 while True:    
-    signals_sellside = process_tickers_sellside(write_file_path, sheet_name)
+    signals_sellside = process_tickers_sellside()
 
     for ticker, signal in signals_sellside.items():
         try:
             if signal == "SELL":
+                winsound.Beep(1000,500)
                 close_position(ticker)
+                BoughtTickers = BoughtTickers[BoughtTickers['ticker'] != ticker]
                 print(f"{ticker}: {signal}")
 
             else:
