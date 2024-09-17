@@ -854,7 +854,7 @@ for ticker in tickers:
                         buy_count = buy_count+1
                         buy_quant = open_position(ticker)
                         boughtTicker = { "ticker": ticker,"quantity": buy_quant}
-                        BoughtTickers = BoughtTickers.append(boughtTicker)
+                        BoughtTickers = BoughtTickers.append(boughtTicker, ignore_index = True)
                     else:   
                         print("Ticker failed criteria")
 
