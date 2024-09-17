@@ -13,8 +13,8 @@ from arch import arch_model
 import numpy as np
 import tkinter as tk
 import math
-import winsound #This only works on windows**********************************************************************************************************
-
+import winsound #This only works on windows
+#remove most of the winsound stuff and replace with print statements for use on mac/linux
 app_key = "INSERT"
 app_secret = "INSERT"
 
