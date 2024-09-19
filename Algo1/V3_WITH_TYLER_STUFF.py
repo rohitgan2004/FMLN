@@ -690,10 +690,10 @@ def analyze_volatility(data):
     volatility = qgarch_adjustment(model_fit, returns) 
     return volatility
 
-def generate_signal(volatility, threshold=1.5):
+def generate_signal(volatility, threshold=1.1):
     if volatility > threshold:
         return "SELL"
-    elif volatility < threshold / 2:
+    elif volatility < 0.5:
         return "BUY"
     else:
         return "HOLD"
