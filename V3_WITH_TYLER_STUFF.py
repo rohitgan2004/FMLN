@@ -663,11 +663,14 @@ def fetch_historical_data_sellside(ticker, period='5d'): #changed to 1d for intr
     return stock_data['Close'] 
 
 def get_bid_ask_spread(ticker):
-    stock = yf.Ticker(ticker)
-    quote_info = stock.info
-
-    bid = quote_info.get('bid', None)
-    ask = quote_info.get('ask', None)
+    
+    quote = json_inator(client.quote(ticker))
+    if quote == "error":
+        print("quote_error")
+        return "quote_error"
+    else:
+        ask = quote[ticker]["quote"]["askPrice"]
+        bid = quote[ticker]["quote"]["bidPrice"]
 
     if bid is not None and ask is not None:
         spread = ask - bid
