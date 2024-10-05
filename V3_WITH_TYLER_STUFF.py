@@ -662,6 +662,50 @@ def fetch_historical_data_sellside(ticker, period='5d'): #changed to 1d for intr
     stock_data = yf.download(ticker, period=period, interval='1m')
     return stock_data['Close'] 
 
+def get_bid_ask_spread(ticker):
+    stock = yf.Ticker(ticker)
+    quote_info = stock.info
+
+    bid = quote_info.get('bid', None)
+    ask = quote_info.get('ask', None)
+
+    if bid is not None and ask is not None:
+        spread = ask - bid
+        return bid, ask, spread
+    else:
+        print(f"No bid/ask data available for {ticker}")
+
+def fetch_spread_data(ticker, period='1d');
+    
+    spreads = []
+    for i in range(30):
+        bid, ask, spread = get_bid_ask_spread(ticker)
+        if spread is not None:
+            spreads.append(spreads)
+        else:
+            print("unable to fetch data")
+    return np.array(spreads)
+
+def analyze_spread_volatility(spread_data):
+    daily_volatility = np.std(spread_data) / np.mean(spread_data)
+    annualized_volatility = daily_volatility * np.sqrt(252)
+    return annualized_volatility
+
+def check_spread_volatility(ticker, threshold = 0.2):
+    spread_data = fetch_spread_data(ticker)
+    if len(spread_data) == 0:
+        print(f"No spread data available for {ticker}")
+        return True
+    
+    annualize_vol = analyze_spread_volatility(spread_data)
+
+    if annualize_vol > threshold:
+        return True
+    else:
+        return False
+    
+
+
 def fit_garch_model(returns):
 
     try:
@@ -701,6 +745,9 @@ def generate_signal(volatility, threshold=1.2):
 def process_sing_ticker(ticker):
     print(f"Processing {ticker}...")
     data = fetch_historical_data(ticker)
+
+    if check_spread_volatility(ticker):
+        return "HOLD"
     
     try:
         if len(data) > 0:
