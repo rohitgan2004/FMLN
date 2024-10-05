@@ -691,7 +691,7 @@ def analyze_spread_volatility(spread_data):
     annualized_volatility = daily_volatility * np.sqrt(252)
     return annualized_volatility
 
-def check_spread_volatility(ticker, threshold = 0.2):
+def check_spread_volatility(ticker, threshold = 0.15):
     spread_data = fetch_spread_data(ticker)
     if len(spread_data) == 0:
         print(f"No spread data available for {ticker}")
