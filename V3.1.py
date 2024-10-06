@@ -768,6 +768,8 @@ def process_tickers_sellside():#Changed name, uses sellside load tickers, remove
     for ticker in tickers:
         #print(f"Processing {ticker}...")
         data = fetch_historical_data_sellside(ticker)
+        if check_spread_volatility(ticker):
+            return "HOLD"
         
         try:
             if len(data) > 0:
