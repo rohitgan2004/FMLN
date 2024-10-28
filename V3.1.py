@@ -4,9 +4,11 @@ import base64
 import requests
 import threading
 import webbrowser
+from polygon import RESTClient
+import datetime
 import urllib.parse
 #from .stream import Stream
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import yfinance as yf
 from arch import arch_model
@@ -619,6 +621,28 @@ class Client:
                             timeout=self.timeout)
 
 #Our stuff
+
+api_key = "YOUR_API_KEY"
+client = RESTClient(api_key)
+
+ticker = "AAPL" 
+end_date = datetime.now()
+start_date = end_date - timedelta(days=365)
+
+data = client.get_aggs(
+    ticker=ticker,
+    multiplier=1,
+    timespan="minute",  
+    from_=start_date.isoformat(),
+    to=end_date.isoformat()
+)
+
+df = pd.DataFrame([{
+    'timestamp': agg['t'],
+    'bid': agg['bp'],
+    'ask': agg['ap']
+} for agg in data])
+
 def initial_screening(file_path,sheet_name,min_price_limit,max_price_limit,volume_limit,write_file_path):
     df = pd.read_excel(file_path,sheet_name)
     filtered_df = df[(df['Price'] > min_price_limit) & (df['Price'] < max_price_limit) & (df['AverageVolume'] >= volume_limit)]
