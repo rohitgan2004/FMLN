@@ -38,7 +38,7 @@ class KalmanFilter:
 # Schwab API Client
 # Updated SchwabClient class with corrected URLs
 class SchwabClient:
-    def __init__(self, app_key, app_secret, callback_url, tokens_file='tokens.json', timeout=5, verbose=False):
+    def __init__(self, app_key, app_secret, callback_url="https://127.0.0.1", tokens_file='tokens.json', timeout=5, verbose=False):
         self.app_key = app_key
         self.app_secret = app_secret
         self.callback_url = callback_url
