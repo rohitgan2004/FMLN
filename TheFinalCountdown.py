@@ -158,6 +158,7 @@ def get_price(symbol, api_key):
     url = f"https://api.polygon.io/v2/last/trade/{symbol}?apiKey={api_key}"
     response = requests.get(url)
     data = response.json()
+    print(f"API Response for {symbol}: {data}")
     if 'status' in data and data['status'] == 'NOT_FOUND':
         print(f"Symbol {symbol} not found.")
         return None
@@ -220,7 +221,6 @@ def main():
                 estimated_price = kf.get_state()
                 position = positions[ticker]
 
-                # Trading logic
                 if estimated_price - price > threshold and position < position_limit:
                     # Buy signal
                     schwab_client.place_order(ticker, quantity, 'buy')
