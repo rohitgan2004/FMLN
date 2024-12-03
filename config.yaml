@@ -1,0 +1,8 @@
+polygon_api_key: 'JvMtinb8VfzxgGUphh2p53d5Zpoddqvz'
+excel_file_path: 'Tickers-V3-Read.xlsx'
+
+schwab:
+  app_key: 'N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu'
+  app_secret: 'nShVVciDsuAkJjaa'
+  callback_url: 'YOUR_CALLBACK_URL'
+  tokens_file: 'tokens.json'
