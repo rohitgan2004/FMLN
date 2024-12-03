@@ -4,5 +4,5 @@ excel_file_path: 'Tickers-V3-Read.xlsx'
 schwab:
   app_key: 'N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu'
   app_secret: 'nShVVciDsuAkJjaa'
-  callback_url: 'YOUR_CALLBACK_URL'
+  callback_url: 'https://127.0.0.1'
   tokens_file: 'tokens.json'
