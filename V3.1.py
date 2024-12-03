@@ -17,8 +17,8 @@ import tkinter as tk
 import math
 import winsound #This only works on windows
 #remove most of the winsound stuff and replace with print statements for use on mac/linux
-app_key = "INSERT"
-app_secret = "INSERT"
+app_key = "N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu"
+app_secret = "nShVVciDsuAkJjaa"
 
 #Tyler Stuff
 class Client:
