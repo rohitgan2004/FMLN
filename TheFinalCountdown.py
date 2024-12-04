@@ -2,41 +2,47 @@ import numpy as np
 import pandas as pd
 import requests
 import time
-from datetime import datetime
-import threading
-import webbrowser
+from datetime import datetime, timedelta
 import base64
 import json
 import urllib.parse
-import os
 import yaml
+from pytz import timezone
+import asyncio
+import aiohttp
+import webbrowser
+import concurrent.futures
 
-# Kalman Filter implementation
-class KalmanFilter:
-    def __init__(self, A=1, H=1, Q=1e-5, R=0.1, initial_state=0, initial_covariance=1.0):
-        self.A = A  # State transition matrix
-        self.H = H  # Observation matrix
-        self.Q = Q  # Process noise covariance
-        self.R = R  # Measurement noise covariance
-        self.x = initial_state  # Initial state estimate
-        self.P = initial_covariance  # Initial covariance estimate
+# Function to fetch prices for multiple tickers asynchronously
+async def get_prices_async(symbols, api_key):
+    # symbols: list of ticker symbols
+    all_prices = {}
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        max_symbols_per_request = 50  # Adjust based on API limitations
+        for i in range(0, len(symbols), max_symbols_per_request):
+            chunk = symbols[i:i+max_symbols_per_request]
+            symbols_str = ','.join(chunk)
+            url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers={symbols_str}&apiKey={api_key}"
+            tasks.append(fetch_data(session, url))
+        responses = await asyncio.gather(*tasks)
+        for data in responses:
+            if data and 'tickers' in data:
+                for ticker_data in data['tickers']:
+                    ticker = ticker_data['ticker']
+                    price = ticker_data['lastTrade']['p']
+                    all_prices[ticker] = price
+            else:
+                print(f"Error fetching data: {data}")
+    return all_prices  # Returns a dictionary {ticker: price}
 
-    def predict(self):
-        # Predict the next state
-        self.x = self.A * self.x
-        self.P = self.A * self.P * self.A + self.Q
-
-    def update(self, z):
-        # Update the state with new measurement z
-        K = self.P * self.H / (self.H * self.P * self.H + self.R)  # Kalman Gain
-        self.x = self.x + K * (z - self.H * self.x)
-        self.P = (1 - K * self.H) * self.P
-
-    def get_state(self):
-        return self.x
-
-# Schwab API Client
-# Updated SchwabClient class with corrected URLs
+async def fetch_data(session, url):
+    try:
+        async with session.get(url) as response:
+            return await response.json()
+    except Exception as e:
+        print(f"Exception during data fetch: {e}")
+        return None
 class SchwabClient:
     def __init__(self, app_key, app_secret, callback_url="https://127.0.0.1", tokens_file='tokens.json', timeout=5, verbose=False):
         self.app_key = app_key
@@ -152,21 +158,32 @@ class SchwabClient:
             raise Exception(f"Order placement failed: {response.text}")
 
 
-# Function to get price data from Polygon.io
-def get_price(symbol, api_key):
-    # Get the latest price data for the symbol
-    url = f"https://api.polygon.io/v2/last/trade/{symbol}?apiKey={api_key}"
-    response = requests.get(url)
-    data = response.json()
-    print(f"API Response for {symbol}: {data}")
-    if 'status' in data and data['status'] == 'NOT_FOUND':
-        print(f"Symbol {symbol} not found.")
-        return None
-    if 'error' in data:
-        print(f"Error fetching data for {symbol}: {data['error']}")
-        return None
-    price = data['results']['p']
-    return price
+
+# Vectorized Kalman Filter class
+class VectorizedKalmanFilter:
+    def __init__(self, num_tickers, initial_states, Q=1e-3, R=0.1):
+        self.num_tickers = num_tickers
+        self.A = np.eye(num_tickers)  # State transition matrix
+        self.H = np.eye(num_tickers)  # Observation matrix
+        self.Q = np.eye(num_tickers) * Q  # Process noise covariance
+        self.R = np.eye(num_tickers) * R  # Measurement noise covariance
+        self.x = np.array(initial_states)  # Initial state estimates
+        self.P = np.eye(num_tickers) * 1.0  # Initial covariance estimates
+
+    def predict(self):
+        self.x = self.A @ self.x
+        self.P = self.A @ self.P @ self.A.T + self.Q
+
+    def update(self, z):
+        z = np.array(z)
+        y = z - self.H @ self.x  # Innovation
+        S = self.H @ self.P @ self.H.T + self.R  # Innovation covariance
+        K = self.P @ self.H.T @ np.linalg.inv(S)  # Kalman Gain
+        self.x = self.x + K @ y
+        self.P = self.P - K @ self.H @ self.P
+
+    def get_states(self):
+        return self.x
 
 def main():
     # Load configuration
@@ -180,8 +197,10 @@ def main():
     app_secret = schwab_config['app_secret']
     callback_url = schwab_config['callback_url']
     tokens_file = schwab_config.get('tokens_file', 'tokens.json')
+    
 
     # Initialize Schwab Client
+    # Assume SchwabClient is defined elsewhere in the code
     schwab_client = SchwabClient(
         app_key=app_key,
         app_secret=app_secret,
@@ -198,50 +217,172 @@ def main():
         print(f"Error reading Excel file: {e}")
         return
 
-    # Initialize Kalman Filters for each ticker
-    kf_dict = {ticker: KalmanFilter() for ticker in tickers}
+    num_tickers = len(tickers)
 
-    # Position tracking for each ticker
+    # Fetch initial prices for all tickers asynchronously
+    loop = asyncio.get_event_loop()
+    prices = loop.run_until_complete(get_prices_async(tickers, polygon_api_key))
+
+    # Initialize initial prices
+    initial_prices = np.zeros(num_tickers)
+
+    # Initialize Vectorized Kalman Filter
+    vkf = VectorizedKalmanFilter(num_tickers=num_tickers, initial_states=initial_prices)
+
+    # Position tracking
     positions = {ticker: 0 for ticker in tickers}
-    position_limit = 100  # Maximum number of shares to hold for each ticker
+    average_cost = {ticker: 0.0 for ticker in tickers}
+    current_price = {ticker: 0.0 for ticker in tickers}
+    position_limit = 3  # Maximum number of shares to hold for each ticker
     time_interval = 60  # Time interval in seconds between each data fetch
     threshold = 0.5  # Threshold for trading signals
-    quantity = 10  # Number of shares to trade per signal
+
+    # Trading session parameters
+    est = timezone('US/Eastern')
+    initial_capital = 1000.0  # Increased initial capital for 1000 tickers
+    net_profit_loss = 0.0  # Realized P/L
 
     try:
         while True:
-            for ticker in tickers:
-                price = get_price(ticker, polygon_api_key)
-                if price is None:
-                    continue
+            now_est = datetime.now(est)
+            start_time = now_est.replace(hour=9, minute=30, second=0, microsecond=0)
+            end_time = now_est.replace(hour=16, minute=0, second=0, microsecond=0)
 
-                kf = kf_dict[ticker]
-                kf.predict()
-                kf.update(price)
-                estimated_price = kf.get_state()
-                position = positions[ticker]
+            # Check if current time is within trading hours
+            if start_time <= now_est <= end_time:
+                # Fetch prices for all tickers asynchronously
+                prices = loop.run_until_complete(get_prices_async(tickers, polygon_api_key))
+                # Update current prices
+                for ticker in tickers:
+                    price = prices.get(ticker)
+                    if price is None:
+                        continue
+                    current_price[ticker] = price
 
-                if estimated_price - price > threshold and position < position_limit:
-                    # Buy signal
-                    schwab_client.place_order(ticker, quantity, 'buy')
-                    positions[ticker] += quantity
-                    print(f"Bought {quantity} shares of {ticker}")
-                elif price - estimated_price > threshold and position > 0:
-                    # Sell signal
-                    schwab_client.place_order(ticker, quantity, 'sell')
-                    positions[ticker] -= quantity
-                    print(f"Sold {quantity} shares of {ticker}")
-                else:
-                    print(f"No trade for {ticker}. Current position: {position} shares.")
+                # Update Kalman Filter
+                vkf.predict()
+                # Prepare measurements
+                z = []
+                for ticker in tickers:
+                    price = current_price.get(ticker, 0.0)
+                    z.append(price)
+                vkf.update(z)
+                estimated_prices = vkf.get_states()
 
-                # Print status
-                print(f"Time: {datetime.now()}, Ticker: {ticker}, Price: {price}, Estimated: {estimated_price}, Position: {positions[ticker]}")
+                # Trading logic
+                # Prepare data for parallel processing
+                ticker_data_list = []
+                for idx, ticker in enumerate(tickers):
+                    ticker_data_list.append((idx, ticker, estimated_prices[idx]))
 
-            # Wait for the next time interval
-            time.sleep(time_interval)
+                # Process tickers in parallel using ThreadPoolExecutor
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                    executor.map(lambda data: process_ticker(data, positions, average_cost, current_price, net_profit_loss, initial_capital, threshold, position_limit, schwab_client), ticker_data_list)
+
+                # Compute total invested and P/L
+                total_invested = sum(average_cost[ticker] * positions[ticker] for ticker in tickers)
+                unrealized_pl = sum((current_price[ticker] - average_cost[ticker]) * positions[ticker] for ticker in tickers)
+                total_pl = net_profit_loss + unrealized_pl
+
+                print(f"Total Invested: {total_invested}, Net P/L: {total_pl}")
+
+                # Check for net loss exceeding 10% of initial capital
+                if total_pl <= -0.1 * initial_capital:
+                    print("Net loss exceeded 10% of initial capital. Stopping trading.")
+                    break
+
+                # Wait for the next time interval
+                time.sleep(time_interval)
+            else:
+                # Calculate time until next trading session
+                if now_est > end_time:
+                    # After trading hours, wait until next day's start time
+                    next_day = now_est + timedelta(days=1)
+                    start_time = next_day.replace(hour=9, minute=30, second=0, microsecond=0)
+                elif now_est < start_time:
+                    # Before trading hours, wait until start time
+                    start_time = start_time
+
+                time_until_start = (start_time - now_est).total_seconds()
+
+                # Handle weekends
+                while start_time.weekday() >= 5:  # Saturday=5, Sunday=6
+                    start_time += timedelta(days=1)
+                    time_until_start = (start_time - now_est).total_seconds()
+
+                print(f"Not trading hours. Sleeping for {time_until_start} seconds.")
+                time.sleep(time_until_start)
+                continue
 
     except KeyboardInterrupt:
         print("Trading stopped by user.")
+
+def process_ticker(data, positions, average_cost, current_price, net_profit_loss, initial_capital, threshold, position_limit, schwab_client):
+    idx, ticker, estimated_price = data
+    price = current_price.get(ticker)
+    if price is None or price <= 0:
+        return
+    position = positions[ticker]
+
+    # Log the estimates for debugging
+    print(f"Ticker: {ticker}, Actual Price: {price}, Estimated Price: {estimated_price}")
+
+    # Compute total invested amount
+    total_invested = sum(average_cost[ticker] * positions[ticker] for ticker in positions)
+
+    # Buy logic
+    if estimated_price - price > threshold and position < position_limit:
+        # Calculate maximum quantity based on $150 expenditure limit
+        max_quantity = int(150 // price)
+        # Ensure at least 1 share is bought if possible
+        if max_quantity < 1:
+            print(f"Price of {ticker} is too high to buy with $150 limit.")
+            return
+        # Adjust quantity if it exceeds position limit
+        available_quantity = position_limit - position
+        quantity = min(max_quantity, available_quantity)
+        if quantity <= 0:
+            print(f"Position limit reached for {ticker}. Cannot buy more shares.")
+            return
+        # Check if we have enough capital
+        if total_invested + price * quantity > initial_capital:
+            print(f"Not enough capital to buy {quantity} shares of {ticker}")
+            return
+
+        # Place order
+        schwab_client.place_order(ticker, quantity, 'buy')  # Uncomment for live trading
+
+        # Update positions and average cost
+        previous_position = positions[ticker]
+        positions[ticker] += quantity
+        average_cost[ticker] = ((average_cost[ticker] * previous_position) + (price * quantity)) / positions[ticker]
+
+        print(f"Bought {quantity} shares of {ticker}")
+
+    # Sell logic
+    elif price - estimated_price > threshold and position >= 1:
+        quantity = position  # Sell all shares held
+        # Place order
+        schwab_client.place_order(ticker, quantity, 'sell')  # Uncomment for live trading
+
+        # Update net_profit_loss
+        profit = (price - average_cost[ticker]) * quantity
+        net_profit_loss += profit
+
+        # Update positions
+        positions[ticker] -= quantity
+
+        # Reset average cost if no more positions
+        if positions[ticker] == 0:
+            average_cost[ticker] = 0.0
+
+        print(f"Sold {quantity} shares of {ticker}, Profit: {profit}")
+
+    else:
+        print(f"No trade for {ticker}. Current position: {position} shares.")
+
+    # Print status
+    print(f"Time: {datetime.now()}, Ticker: {ticker}, Price: {price}, Estimated: {estimated_price}, Position: {positions[ticker]}")
 
 if __name__ == "__main__":
     main()
