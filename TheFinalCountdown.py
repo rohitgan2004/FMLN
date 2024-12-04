@@ -234,8 +234,8 @@ def main():
     average_cost = {ticker: 0.0 for ticker in tickers}
     current_price = {ticker: 0.0 for ticker in tickers}
     position_limit = 3  # Maximum number of shares to hold for each ticker
-    time_interval = 60  # Time interval in seconds between each data fetch
-    threshold = 0.5  # Threshold for trading signals
+    time_interval = 5  # Time interval in seconds between each data fetch
+    threshold = 0.005*current_price  # Threshold for trading signals
 
     # Trading session parameters
     est = timezone('US/Eastern')
