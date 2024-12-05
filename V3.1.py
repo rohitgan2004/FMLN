@@ -15,8 +15,7 @@ from arch import arch_model
 import numpy as np
 import tkinter as tk
 import math
-import winsound #This only works on windows
-#remove most of the winsound stuff and replace with print statements for use on mac/linux
+
 app_key = "N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu"
 app_secret = "nShVVciDsuAkJjaa"
 
@@ -667,7 +666,6 @@ def load_tickers_from_excel_sellside_initial(file_path, sheet_name):# Assuming t
     df = pd.read_excel(file_path, sheet_name=sheet_name)
     tickers_initial_buys = df['BoughtTickers'].tolist()#.head(50).tolist() commented this out for use with top 100 droppers*************************
     tickers_initial_buys = [ticker for ticker in tickers_initial_buys if isinstance(ticker, str) and ticker.strip()]
-    winsound.Beep(1000, 500)
     print("Buy top 50:")
     print(tickers_initial_buys)
     return tickers_initial_buys
@@ -868,7 +866,6 @@ def close_position(ticker):#Closes a position, accesses the quantity from the bo
         print("Success")
     else:
         print("SELL ORDER ERROR")
-        winsound.Beep(1000,3000)
         return "sell_order_error"   
 
 def BIG_RED_BUTTON():#Closes all positions within the bought positions df
@@ -958,7 +955,6 @@ while True:
     for ticker, signal in signals_sellside.items():
         try:
             if signal == "SELL":
-                winsound.Beep(1000,500)
                 close_position(ticker)
                 BoughtTickers = BoughtTickers[BoughtTickers['ticker'] != ticker]
                 print(f"{ticker}: {signal}")
