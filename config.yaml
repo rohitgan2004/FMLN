@@ -2,7 +2,5 @@ polygon_api_key: 'otig8vmB6IODcnuMt_IblL0UiY8WVJbu'
 excel_file_path: 'Tickers-V3-Read.xlsx'
 
 schwab:
-  app_key: 'N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu'
-  app_secret: 'nShVVciDsuAkJjaa'
-  callback_url: 'https://127.0.0.1'
-  tokens_file: 'tokens.json'
+  schwab_app_key: 'N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu'
+  schwav_app_secret: 'nShVVciDsuAkJjaa'
