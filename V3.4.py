@@ -94,9 +94,9 @@ class ExtendedKalmanFilter:
         return future_price
 
 # -----------------------------------
-# SchwabClient Class (Assumed unchanged from your original)
+# SchwabClient Class
 # -----------------------------------
-lass SchwabClient: 
+class SchwabClient: 
 
     """
     DON'T Mess with anything from the current lines 19 through 2943 -- those are VERY, VERY important!!!
@@ -612,6 +612,7 @@ lass SchwabClient:
 # -----------------------------------
 # Asynchronous price (quotes) fetching with bid/ask
 # -----------------------------------
+
 async def fetch_data(session, url):
     try:
         async with session.get(url) as response:
