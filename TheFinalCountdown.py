@@ -223,11 +223,20 @@ def main():
     loop = asyncio.get_event_loop()
     prices = loop.run_until_complete(get_prices_async(tickers, polygon_api_key))
 
+    # Position tracking
+    positions = {ticker: 0 for ticker in tickers}
+    average_cost = {ticker: 0.0 for ticker in tickers}
+    current_price = {ticker: 0.0 for ticker in tickers}
+
     # Initialize initial prices
-    initial_prices = np.zeros(num_tickers)
+    initial_prices = []
+ 
+    for ticker in tickers:
+        price = current_price.get(ticker, 0.0)
+        initial_prices.append(price)
 
     # Initialize Vectorized Kalman Filter
-    vkf = VectorizedKalmanFilter(num_tickers=num_tickers, initial_states=initial_prices)
+    vkf = VectorizedKalmanFilter(num_tickers=num_tickers, initial_states=initial_prices, Q=1e-3, R=0.05)
 
     # Position tracking
     positions = {ticker: 0 for ticker in tickers}
@@ -235,11 +244,11 @@ def main():
     current_price = {ticker: 0.0 for ticker in tickers}
     position_limit = 3  # Maximum number of shares to hold for each ticker
     time_interval = 5  # Time interval in seconds between each data fetch
-    threshold = 0.005*current_price  # Threshold for trading signals
+    threshold = 0.005*price  # Threshold for trading signals
 
     # Trading session parameters
     est = timezone('US/Eastern')
-    initial_capital = 1000.0  # Increased initial capital for 1000 tickers
+    initial_capital = 2000.0  # Increased initial capital for 1000 tickers
     net_profit_loss = 0.0  # Realized P/L
 
     try:
@@ -331,7 +340,7 @@ def process_ticker(data, positions, average_cost, current_price, net_profit_loss
     total_invested = sum(average_cost[ticker] * positions[ticker] for ticker in positions)
 
     # Buy logic
-    if estimated_price - price > threshold and position < position_limit:
+    if estimated_price - price < threshold and position < position_limit:
         # Calculate maximum quantity based on $150 expenditure limit
         max_quantity = int(150 // price)
         # Ensure at least 1 share is bought if possible
@@ -360,7 +369,7 @@ def process_ticker(data, positions, average_cost, current_price, net_profit_loss
         print(f"Bought {quantity} shares of {ticker}")
 
     # Sell logic
-    elif price - estimated_price > threshold and position >= 1:
+    elif price - estimated_price < threshold and position >= 1:
         quantity = position  # Sell all shares held
         # Place order
         schwab_client.place_order(ticker, quantity, 'sell')  # Uncomment for live trading

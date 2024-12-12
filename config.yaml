@@ -3,4 +3,4 @@ excel_file_path: 'Tickers-V3-Read.xlsx'
 
 schwab:
   schwab_app_key: 'N0EhicGPT7ZXu2mlYOSOtMD1xmVNExdu'
-  schwav_app_secret: 'nShVVciDsuAkJjaa'
+  schwab_app_secret: 'nShVVciDsuAkJjaa'

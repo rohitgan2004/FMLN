@@ -717,7 +717,7 @@ with open('config.yaml', 'r') as f:
 polygon_api_key = config['polygon_api_key']
 excel_file_path = config['excel_file_path']
 schwab_config = config['schwab']
-schwab_app_key = schwab_config['app_key']
+schwab_app_key = schwab_config['schwab_app_key']
 schwab_app_secret = schwab_config['schwab_app_secret']
 
 #Establishes schwab_client ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -743,17 +743,25 @@ num_tickers = len(tickers)
 loop = asyncio.get_event_loop()
 prices = loop.run_until_complete(get_prices_async(tickers, polygon_api_key))
 
-# Initialize initial prices
-initial_prices = np.zeros(num_tickers)
+# Position tracking
+positions = {ticker: 0 for ticker in tickers}
+average_cost = {ticker: 0.0 for ticker in tickers}
+current_price = {ticker: 0.0 for ticker in tickers}
+
+    # Initialize initial prices
+initial_prices = []
+ 
+for ticker in tickers:
+    price = current_price.get(ticker, 0.0)
+    initial_prices.append(price)
+
 
 # Initialize Vectorized Kalman Filter
 vkf = VectorizedKalmanFilter(num_tickers=num_tickers, initial_states=initial_prices)
 
 # Position tracking
-positions = {ticker: 0 for ticker in tickers}
-current_price = {ticker: 0.0 for ticker in tickers}
-time_interval = 5  # Time interval in seconds between each data fetch
-threshold = 0.005*current_price  # Threshold for trading signals
+time_interval = 30  # Time interval in seconds between each data fetch
+threshold = 0.005*price  # Threshold for trading signals
 
 # Trading session parameters
 est = timezone('US/Eastern')
