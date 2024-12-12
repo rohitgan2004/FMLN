@@ -323,9 +323,22 @@ tickers_df = pd.read_excel(excel_file_path)
 tickers_column = tickers_df['Ticker']
 df['tickers'] = tickers_column
 
-tickers = ["GOOG", "AAPL", "MSFT"]
+num_tickers = 700
+
+tickers = tickers_column[:num_tickers]
 
 quotes = schwab_client.quotes(tickers).json()
+
+for ticker in tickers:
+    ticker = ticker
+    schwab_askPrice = quotes[ticker]["quote"]["askPrice"]
+    schwab_bidPrice = quotes[ticker]["quote"]["bidPrice"]
+    schwab_time = datetime.now()
+
+    df.loc[df['tickers'] == ticker, ['schwab_askPrice', 'schwab_bidPrice', 'schwab_time']] = [
+            schwab_askPrice, schwab_bidPrice, schwab_time]
+    
+"""
 
 async def fetch_data(session, url):
     try:
@@ -374,16 +387,7 @@ for ticker in tickers:
 
     df.loc[df['tickers'] == ticker, ['polygon_askPrice', 'polygon_bidPrice', 'polygon_time']] = [
             polyAskPrice, polyBidPrice, polyTime]
-               
 
-for ticker in tickers:
-    ticker = ticker
-    schwab_askPrice = quotes[ticker]["quote"]["askPrice"]
-    schwab_bidPrice = quotes[ticker]["quote"]["bidPrice"]
-    schwab_time = datetime.now()
-
-    df.loc[df['tickers'] == ticker, ['schwab_askPrice', 'schwab_bidPrice', 'schwab_time']] = [
-            schwab_askPrice, schwab_bidPrice, schwab_time]
-    
+"""
     
 df.to_excel("Book1.xlsx", index=False)    

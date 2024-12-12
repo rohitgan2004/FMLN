@@ -877,17 +877,18 @@ try:
         BIG_RED_BUTTON_EndTime = now_est.replace(hour=16, minute=0, second=0, microsecond=0)
 
         if start_time <= now_est <= end_time:
-            quotes = loop.run_until_complete(get_quotes_async(tickers, polygon_api_key))
+            #quotes = loop.run_until_complete(get_quotes_async(tickers, polygon_api_key))
+            quotes = schwab_client.quotes(tickers).json()
             timestamp = datetime.now()
             for t in tickers:
-                q = quotes.get(t, None)
+                q = schwab_client.quote(t, quotes)
                 if q is not None:
                     current_price[t] = q
                     bid_ask_data = pd.concat([bid_ask_data, pd.DataFrame([{
                         'timestamp': timestamp,
                         'ticker': t,
-                        'bid': q['bid'],
-                        'ask': q['ask']
+                        'bid': quotes[t]['bidPrice'],
+                        'ask': quotes[t]['askPrice']
                     }])], ignore_index=True)
 
             # Rank and filter tickers by variation
