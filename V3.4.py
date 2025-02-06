@@ -756,7 +756,7 @@ def compute_variation(bid, ask):
     mid = (bid + ask) / 2
     if mid == 0:
         return 0
-    return (ask - bid) / mid
+    return (ask - bid)
 
 def update_and_rank_tickers(bid_ask_data, max_variation_threshold=0.2):
     # Get latest row per ticker
@@ -821,7 +821,7 @@ def process_ticker(data, positions, current_price, threshold, future_prices, ski
 
 min_price_threshold = 1.01
 max_price_threshold = 50
-buffer_amount = 3500
+buffer_amount = 3000
 position_size_target = 50
 
 with open('config.yaml', 'r') as f:
