@@ -64,8 +64,7 @@ class PoincareMapTradingAlgorithm:
 
 # Example usage
 if __name__ == "__main__":
-    # Load your data here
-    data = pd.read_csv('/path/to/your/data.csv', index_col='Date', parse_dates=True)
+    data = pd.read_csv('/path/to/my/data.csv', index_col='Date', parse_dates=True)
     algorithm = PoincareMapTradingAlgorithm(data)
     trading_signals = algorithm.run()
     print(trading_signals)
