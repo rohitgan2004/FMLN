@@ -1,12 +1,7 @@
-#!/usr/bin/env python3
-
 import numpy as np
 import pandas as pd
 from ib_insync import IB, Stock, MarketOrder, util
 
-##############################################################################
-# 1. Kalman Filter (toy example)
-##############################################################################
 class KalmanFilter1D:
     """
     A basic 1D Kalman Filter to track a single 'true price' state
