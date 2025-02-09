@@ -14,7 +14,9 @@ def get_news_sentiment():
     to score sentiment. Here, we simply return a random value between -1 and 1.
 
     TODO: This function will be replaced with a real sentiment analysis function. COuld potentially use the Ticker 
-    News API to get the news sentiment for a given stock. This is in Polygon.io
+    News API to get the news sentiment for a given stock. This is in Polygon.io. I dont feel like implementing in 
+    House NLP and polygon does this for us automatically. I'll check if there are any IBKR solutions similar but I 
+    honestly doubt it.
     """
     sentiment = np.random.uniform(-1, 1)
     return sentiment
