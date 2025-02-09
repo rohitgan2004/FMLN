@@ -216,7 +216,7 @@ def onNewBar(bars: BarDataList, hasNewBar: bool):
     print(f"Time={new_time}, Price={new_price:.2f}, Filtered={filtered_price:.2f}")
 
 # Request live (or historical+live) bars
-bars = ib.reqHistoricalData(
+bars = ib.reqHistoricalData( 
     contract=contract,
     endDateTime='',
     durationStr='1 D',
